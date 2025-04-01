@@ -3,9 +3,18 @@ import * as TooltipPrimitive from "@radix-ui/react-tooltip"
 import { cn } from "@/lib/utils"
 
 const TooltipProvider = TooltipPrimitive.Provider
+const TooltipRoot = TooltipPrimitive.Root
 const TooltipTrigger = TooltipPrimitive.Trigger
 
-const TooltipContent = React.forwardRef(({ className, sideOffset = 4, ...props }, ref) => (
+interface TooltipContentProps extends React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content> {
+    className?: string;
+    sideOffset?: number;
+}
+
+const TooltipContent = React.forwardRef<
+    React.ElementRef<typeof TooltipPrimitive.Content>,
+    TooltipContentProps
+>(({ className, sideOffset = 4, ...props }, ref) => (
     <TooltipPrimitive.Content
         ref={ref}
         sideOffset={sideOffset}
@@ -19,14 +28,19 @@ const TooltipContent = React.forwardRef(({ className, sideOffset = 4, ...props }
 TooltipContent.displayName = TooltipPrimitive.Content.displayName
 
 // Create a simple Tooltip component that combines these parts
-const Tooltip = ({ children, content }) => (
+interface TooltipProps {
+    children: React.ReactNode;
+    content: React.ReactNode;
+}
+
+const Tooltip: React.FC<TooltipProps> = ({ children, content }) => (
     <TooltipProvider>
-        <TooltipPrimitive.Root>
+        <TooltipRoot>
             <TooltipTrigger asChild>{children}</TooltipTrigger>
             <TooltipContent>
                 <p className="font-light">{content}</p>
             </TooltipContent>
-        </TooltipPrimitive.Root>
+        </TooltipRoot>
     </TooltipProvider>
 )
 
