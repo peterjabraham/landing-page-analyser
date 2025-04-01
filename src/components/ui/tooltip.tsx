@@ -1,16 +1,28 @@
-import * as React from "react";
-import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import { cn } from "@/lib/utils";
+/**
+ * This component provides tooltip functionality using Radix UI primitives.
+ * Properly typed with TypeScript to avoid compilation errors.
+ */
+import * as React from "react"
+import * as TooltipPrimitive from "@radix-ui/react-tooltip"
+import { cn } from "@/lib/utils"
 
-const TooltipProvider = TooltipPrimitive.Provider;
-const TooltipRoot = TooltipPrimitive.Root;
-const TooltipTrigger = TooltipPrimitive.Trigger;
+// Primitive exports for composition
+const TooltipProvider = TooltipPrimitive.Provider
+const TooltipRoot = TooltipPrimitive.Root
+const TooltipTrigger = TooltipPrimitive.Trigger
 
+/**
+ * Props for TooltipContent component
+ * Extends Radix UI's Content props and adds className and sideOffset
+ */
 interface TooltipContentProps extends React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content> {
     className?: string;
     sideOffset?: number;
 }
 
+/**
+ * TooltipContent component with proper TypeScript typing
+ */
 const TooltipContent = React.forwardRef<
     React.ElementRef<typeof TooltipPrimitive.Content>,
     TooltipContentProps
@@ -24,16 +36,20 @@ const TooltipContent = React.forwardRef<
         )}
         {...props}
     />
-));
+))
+TooltipContent.displayName = TooltipPrimitive.Content.displayName
 
-TooltipContent.displayName = TooltipPrimitive.Content.displayName;
-
-// Create a simple Tooltip component that combines these parts
+/**
+ * Props for the convenience Tooltip component
+ */
 interface TooltipProps {
     children: React.ReactNode;
     content: React.ReactNode;
 }
 
+/**
+ * Convenient Tooltip component for typical usage
+ */
 const Tooltip: React.FC<TooltipProps> = ({ children, content }) => (
     <TooltipProvider>
         <TooltipRoot>
@@ -43,6 +59,7 @@ const Tooltip: React.FC<TooltipProps> = ({ children, content }) => (
             </TooltipContent>
         </TooltipRoot>
     </TooltipProvider>
-);
+)
 
-export { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent }; 
+// Named exports
+export { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } 
