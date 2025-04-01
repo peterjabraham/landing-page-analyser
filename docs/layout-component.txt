@@ -1,0 +1,17 @@
+// app/layout.js
+import './globals.css'
+
+export const metadata = {
+  title: 'CSV Data Analyzer',
+  description: 'Upload, process, and analyze CSV data with ease',
+}
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body className="min-h-screen bg-gray-50 font-sans">
+        {children}
+      </body>
+    </html>
+  )
+}

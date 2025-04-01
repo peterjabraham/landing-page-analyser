@@ -1,0 +1,278 @@
+// app/page.js
+"use client";
+
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tooltip } from "@/components/ui/tooltip";
+import { 
+  Loader2, 
+  HelpCircle, 
+  Upload, 
+  FileText, 
+  Download,
+  Check,
+  ArrowRight 
+} from "lucide-react";
+
+export default function Home() {
+  const [file, setFile] = useState(null);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [keyEventsName, setKeyEventsName] = useState("Key events");
+  const [currentStep, setCurrentStep] = useState(1);
+  const [error, setError] = useState(null);
+
+  const handleFileChange = (e) => {
+    if (e.target.files?.length) {
+      setFile(e.target.files[0]);
+      setError(null);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!file) {
+      setError("Please select a CSV file first");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("keyEventsName", keyEventsName);
+
+    try {
+      const response = await fetch("/api/process-csv", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to process CSV");
+      }
+
+      const result = await response.json();
+      setData(result.data);
+      setCurrentStep(2);
+    } catch (error) {
+      console.error("Error processing CSV:", error);
+      setError("Error processing CSV file. Please check the file format and try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownload = () => {
+    if (!data) return;
+
+    // Convert data to CSV
+    const headers = Object.keys(data[0]).join(",");
+    const rows = data.map(row => Object.values(row).join(","));
+    const csvContent = [headers, ...rows].join("\n");
+    
+    // Create download link
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "processed_data.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  return (
+    <main className="min-h-screen bg-gray-50 py-8">
+      <div className="container mx-auto px-4 max-w-5xl">
+        <header className="mb-8 text-center">
+          <h1 className="text-4xl font-extrabold text-gray-900 mb-2">CSV Data Analyzer</h1>
+          <p className="text-lg font-light text-gray-600">Upload, process, and analyze your CSV data with ease</p>
+        </header>
+        
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-2">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
+                1
+              </div>
+              <div className="font-medium">Upload & Configure</div>
+            </div>
+            <div className="flex-1 mx-4 border-t border-gray-200"></div>
+            <div className="flex items-center space-x-2">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
+                2
+              </div>
+              <div className="font-medium">Results & Download</div>
+            </div>
+          </div>
+        </div>
+        
+        {currentStep === 1 && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Upload className="mr-2 h-5 w-5" />
+                Upload Your CSV File
+              </CardTitle>
+              <CardDescription>Upload your CSV file and configure processing options</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-6">
+                <div className="grid gap-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="keyEventsName" className="flex items-center">
+                      Custom name for "Key events" column
+                      <Tooltip content="Rename the 'Key events' column to match your naming convention">
+                        <HelpCircle className="ml-1 h-4 w-4 text-gray-400" />
+                      </Tooltip>
+                    </Label>
+                  </div>
+                  <Input
+                    id="keyEventsName"
+                    value={keyEventsName}
+                    onChange={(e) => setKeyEventsName(e.target.value)}
+                    placeholder="Key events"
+                    className="font-light"
+                  />
+                </div>
+                
+                <div className="grid gap-2">
+                  <Label htmlFor="csvFile" className="flex items-center">
+                    Upload CSV File
+                    <Tooltip content="Select a CSV file that includes columns for Landing page, Sessions, Key events, and Total Revenue">
+                      <HelpCircle className="ml-1 h-4 w-4 text-gray-400" />
+                    </Tooltip>
+                  </Label>
+                  <div className="border-2 border-dashed border-gray-200 rounded-lg p-8">
+                    <div className="flex flex-col items-center justify-center text-center">
+                      <FileText className="h-10 w-10 text-gray-400 mb-4" />
+                      <div className="mb-4">
+                        <p className="font-medium text-sm text-gray-700 mb-1">
+                          {file ? `Selected: ${file.name}` : "Drag and drop a CSV file, or click to browse"}
+                        </p>
+                        <p className="text-xs text-gray-500 font-light">
+                          Your file should include columns for Landing page, Sessions, Key events, and Total Revenue
+                        </p>
+                      </div>
+                      <label className="cursor-pointer">
+                        <Input
+                          id="csvFile"
+                          type="file"
+                          accept=".csv"
+                          onChange={handleFileChange}
+                          className="hidden"
+                        />
+                        <Button variant="outline" type="button" className="font-light">
+                          {file ? "Change File" : "Select File"}
+                        </Button>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                {error && (
+                  <div className="bg-red-50 text-red-700 p-3 rounded-md text-sm font-light">
+                    {error}
+                  </div>
+                )}
+                
+                <Button 
+                  onClick={handleUpload} 
+                  disabled={!file || loading}
+                  className="w-full font-medium"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      Process CSV
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {currentStep === 2 && data && (
+          <>
+            <Card className="mb-6">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center">
+                    <Check className="mr-2 h-5 w-5 text-green-500" />
+                    Processing Complete
+                  </CardTitle>
+                  <CardDescription>
+                    Your CSV has been processed and analyzed
+                  </CardDescription>
+                </div>
+                <div className="flex space-x-2">
+                  <Button variant="outline" onClick={() => setCurrentStep(1)}>
+                    Upload Another
+                  </Button>
+                  <Tooltip content="Download the processed data as a CSV file">
+                    <Button onClick={handleDownload}>
+                      <Download className="mr-2 h-4 w-4" />
+                      Download CSV
+                    </Button>
+                  </Tooltip>
+                </div>
+              </CardHeader>
+              <CardContent className="overflow-x-auto">
+                <div className="border rounded-md">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-50">
+                        {Object.keys(data[0]).map((header) => (
+                          <TableHead key={header} className="font-extrabold text-xs uppercase text-gray-600">
+                            {header}
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {data.map((row, rowIndex) => (
+                        <TableRow key={rowIndex} className="font-light">
+                          {Object.values(row).map((cell, cellIndex) => (
+                            <TableCell key={cellIndex}>{cell}</TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 text-blue-800">
+              <h3 className="font-bold mb-2 flex items-center">
+                <HelpCircle className="mr-2 h-5 w-5" />
+                What's Next?
+              </h3>
+              <p className="text-sm font-light">
+                Your CSV has been processed and enhanced with a calculated conversion rate column. You can download the full dataset or upload another file to process.
+              </p>
+            </div>
+          </>
+        )}
+      </div>
+    </main>
+  );
+}
