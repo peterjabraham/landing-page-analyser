@@ -1,10 +1,10 @@
-import * as React from "react"
-import * as TooltipPrimitive from "@radix-ui/react-tooltip"
-import { cn } from "@/lib/utils"
+import * as React from "react";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import { cn } from "@/lib/utils";
 
-const TooltipProvider = TooltipPrimitive.Provider
-const TooltipRoot = TooltipPrimitive.Root
-const TooltipTrigger = TooltipPrimitive.Trigger
+const TooltipProvider = TooltipPrimitive.Provider;
+const TooltipRoot = TooltipPrimitive.Root;
+const TooltipTrigger = TooltipPrimitive.Trigger;
 
 interface TooltipContentProps extends React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content> {
     className?: string;
@@ -24,8 +24,9 @@ const TooltipContent = React.forwardRef<
         )}
         {...props}
     />
-))
-TooltipContent.displayName = TooltipPrimitive.Content.displayName
+));
+
+TooltipContent.displayName = TooltipPrimitive.Content.displayName;
 
 // Create a simple Tooltip component that combines these parts
 interface TooltipProps {
@@ -42,6 +43,6 @@ const Tooltip: React.FC<TooltipProps> = ({ children, content }) => (
             </TooltipContent>
         </TooltipRoot>
     </TooltipProvider>
-)
+);
 
-export { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } 
+export { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent }; 
