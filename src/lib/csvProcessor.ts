@@ -1,9 +1,12 @@
 import Papa from 'papaparse';
 import { CsvRow, ChannelData, LandingPageData } from './types';
 
-export async function processCSV(file: File): Promise<ChannelData[]> {
+export async function processCSV(file: File): Promise<{ channelResults: ChannelData[], processedData: any[] }> {
+    // Get file content as text first to avoid FileReaderSync issues on server
+    const csvText = await file.text();
+
     return new Promise((resolve, reject) => {
-        Papa.parse(file, {
+        Papa.parse(csvText, {
             header: true,
             skipEmptyLines: true,
             beforeFirstChunk: (chunk) => {
@@ -19,8 +22,8 @@ export async function processCSV(file: File): Promise<ChannelData[]> {
             complete: (results) => {
                 try {
                     // Process and transform data
-                    const processedData = transformData(results.data);
-                    resolve(processedData);
+                    const { channelResults, processedData } = transformData(results.data);
+                    resolve({ channelResults, processedData });
                 } catch (error) {
                     reject(error);
                 }
@@ -32,19 +35,32 @@ export async function processCSV(file: File): Promise<ChannelData[]> {
     });
 }
 
-function transformData(rawData: any[]): ChannelData[] {
+function transformData(rawData: any[]): { channelResults: ChannelData[], processedData: any[] } {
+    console.log('Raw data sample:', rawData.slice(0, 2));
+
     // Map column names to our expected format
     const data = mapColumns(rawData);
+    console.log('Mapped data sample:', data.slice(0, 2));
+
+    // Count initial rows for diagnostics
+    const initialCount = data.length;
+    console.log(`Initial row count: ${initialCount}`);
 
     // Filter out invalid data
     const filteredData = data
-        .filter(row => row.sessions && row.channelGrouping && row.landingPage)
+        .filter(row => {
+            const hasRequired = row.sessions && row.channelGrouping && row.landingPage;
+            if (!hasRequired) console.log('Filtering out row missing required fields:', row);
+            return hasRequired;
+        })
         .filter(row => {
             // Convert sessions and transactions to numbers
             row.sessions = parseInt(String(row.sessions), 10);
             row.transactions = parseInt(String(row.transactions), 10);
 
-            return !isNaN(row.sessions) && !isNaN(row.transactions);
+            const isValid = !isNaN(row.sessions) && !isNaN(row.transactions);
+            if (!isValid) console.log('Filtering out row with invalid numbers:', row);
+            return isValid;
         })
         .filter(row => {
             // Apply business rules
@@ -55,8 +71,18 @@ function transformData(rawData: any[]): ChannelData[] {
                 !landingPage.includes('checkout') &&
                 !landingPage.includes('purchase');
 
+            if (!hasMinSessions) console.log(`Filtering out row with insufficient sessions (${row.sessions}):`, row);
+            if (!hasMinTransactions) console.log(`Filtering out row with insufficient transactions (${row.transactions}):`, row);
+            if (!isNotPurchasePage) console.log(`Filtering out purchase page:`, row);
+
             return hasMinSessions && hasMinTransactions && isNotPurchasePage;
         });
+
+    console.log(`After filtering: ${filteredData.length} rows remain out of ${initialCount}`);
+
+    if (filteredData.length === 0) {
+        console.warn('WARNING: All data was filtered out. Check filter criteria and data format.');
+    }
 
     // Calculate conversion rates
     const dataWithConversionRates = filteredData.map(row => {
@@ -67,11 +93,21 @@ function transformData(rawData: any[]): ChannelData[] {
         };
     });
 
+    // Create formatted data for download
+    const processedData = dataWithConversionRates.map(row => ({
+        "Landing Page": row.landingPage,
+        "Channel": row.channelGrouping,
+        "Sessions": row.sessions,
+        "Transactions": row.transactions,
+        "Conversion Rate (%)": row.conversionRate.toFixed(2)
+    }));
+
     // Group by channel
     const channelGroups = groupByChannel(dataWithConversionRates);
+    console.log(`Identified ${Object.keys(channelGroups).length} channel groups:`, Object.keys(channelGroups));
 
     // Create result object
-    return Object.entries(channelGroups).map(([channelName, channelData]) => {
+    const channelResults = Object.entries(channelGroups).map(([channelName, channelData]) => {
         // Sort by conversion rate
         const sortedData = [...channelData].sort((a, b) => b.conversionRate - a.conversionRate);
 
@@ -91,6 +127,8 @@ function transformData(rawData: any[]): ChannelData[] {
             bottom5: bottom5.sort(sortBySessionsDesc)
         };
     });
+
+    return { channelResults, processedData };
 }
 
 function mapColumns(data: any[]): CsvRow[] {
@@ -100,15 +138,24 @@ function mapColumns(data: any[]): CsvRow[] {
     const firstRow = data[0];
     const keys = Object.keys(firstRow);
 
-    // Try to map columns to expected format
+    console.log('Available CSV columns:', keys);
+
+    // Try to map columns to expected format - use more specific regex patterns
     const columnMap = {
-        landingPage: keys.find(k => /landing.?page/i.test(k)) || 'Landing page',
-        sessions: keys.find(k => /session/i.test(k)) || 'Sessions',
-        channelGrouping: keys.find(k => /channel/i.test(k)) || 'Session default channel group',
+        landingPage: keys.find(k => /^landing.?page$/i.test(k)) || keys.find(k => /landing.?page/i.test(k)) || 'Landing page',
+        sessions: keys.find(k => /^sessions$/i.test(k)) || keys.find(k => /^session$/i.test(k)) || 'Sessions',
+        channelGrouping: keys.find(k => /channel.?group/i.test(k)) || 'Session default channel group',
         transactions: keys.find(k => /key.?event|transaction/i.test(k)) || 'Key events'
     };
 
     console.log('Column Mapping:', columnMap);
+
+    // Validate the mapping - we must have valid column names
+    if (!keys.includes(columnMap.sessions)) {
+        console.error('Sessions column not found in CSV. Available columns:', keys);
+        console.error('Current mapping:', columnMap);
+        throw new Error('Cannot find Sessions column in CSV file');
+    }
 
     // Map data using the column mapping
     return data.map(row => ({
@@ -121,11 +168,6 @@ function mapColumns(data: any[]): CsvRow[] {
 
 function groupByChannel(data: LandingPageData[]): Record<string, LandingPageData[]> {
     return data.reduce((groups, row) => {
-        // Skip landing pages that are just "/"
-        if (row.landingPage === '/') {
-            return groups;
-        }
-
         // Create array for this channel if it doesn't exist yet
         const channelName = row.channelGrouping;
         if (!groups[channelName]) {

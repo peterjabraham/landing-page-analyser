@@ -14,11 +14,12 @@ export async function POST(request: NextRequest) {
         }
 
         // Process the CSV file
-        const channelResults = await processCSV(file)
+        const { channelResults, processedData } = await processCSV(file)
 
         // Return the processed data
         return NextResponse.json({
             channelResults,
+            processedData
         })
     } catch (error: any) {
         console.error('Error processing CSV:', error)
