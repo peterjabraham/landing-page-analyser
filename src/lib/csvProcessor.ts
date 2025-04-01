@@ -24,11 +24,11 @@ export async function processCSV(file: File): Promise<{ channelResults: ChannelD
                     // Process and transform data
                     const { channelResults, processedData } = transformData(results.data);
                     resolve({ channelResults, processedData });
-                } catch (error) {
+                } catch (error: unknown) {
                     reject(error);
                 }
             },
-            error: (error) => {
+            error: (error: Error) => {
                 reject(error);
             }
         });

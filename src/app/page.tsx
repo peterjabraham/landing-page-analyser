@@ -34,9 +34,10 @@ export default function Home() {
             setChannelResults(data.channelResults);
             setProcessedData(data.processedData || []);
             setIsUploaded(true);
-        } catch (err) {
-            setError('Error processing the CSV file. Please try again.');
-            console.error(err);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Error processing the CSV file. Please try again.';
+            setError(errorMessage);
+            console.error(error);
         } finally {
             setIsProcessing(false);
         }
